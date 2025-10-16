@@ -17,43 +17,22 @@ Stream content → Client (e.g. browser video player) fetches playlist and segme
 
 **Args:**
 
-```input_mp4_path``` – Path or URL to input MP4 video.
+```input_mp4_path``` – Path or URL to input MP4/MOV video.
 
-```output_name``` – Desired output filename (e.g. movie.m3u8).
+```video_id``` - ID of video in database
 
 ```segment_duration (optional)``` – Duration (in seconds) for each .ts segment (default: 10s).
 
 **Implementation:**
-Uses ffmpeg to generate a .m3u8 playlist file and ultiple .ts video segment files. Save to output directory: local_encodings/
+Uses ffmpeg to generate a .m3u8 playlist file and ultiple .ts video segment files. Save to local directory then uploads to GCS.
 
----
-```/stream-segment```
-
-**Purpose:** Stream .m3u8 playlists or .ts video segments directly to clients.
-
-**Method:** GET
-
-**Query Parameter:**
-
-url – Public or presigned URL of the HLS file (either .m3u8 or .ts).
-
-**Implementation:**
-<ul>
-<li>Uses guess_mime_type() to determine content type.</li>
-<li>Streams data chunk-by-chunk with StreamingResponse(fetch_file(url)).</li>
-</ul>
-
-Supported types:
-
-.m3u8 → application/vnd.apple.mpegurl
-
-.ts → video/mp2t
+**Returns:**
+Path to .m3u8 playlist file on GCP
 
 ---
 ### Upload Helper
 upload_to_s3(file_path, bucket_name, object_name)
 
-Purpose: Uploads encoded files or segments to S3 storage (AWS or compatible).
-
+Purpose: Uploads encoded files or segments to Google Cloud Storage
 
 venv: encode_service
