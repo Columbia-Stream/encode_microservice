@@ -4,7 +4,11 @@ import boto3
 import asyncio
 
 def save_hls_s3(local_hls_dir, s3_bucket, s3_prefix):
-    s3 = boto3.client('s3')
+    s3 = boto3.client('s3',
+     region_name='your-aws-region', 
+     aws_access_key_id='YOUR_ACCESS_KEY_ID',
+     aws_secret_access_key='YOUR_SECRET_ACCESS_KEY')
+
     for filename in os.listdir(local_hls_dir):
         local_file = os.path.join(local_hls_dir, filename)
         s3_key = os.path.join(s3_prefix, filename)
