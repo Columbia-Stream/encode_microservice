@@ -2,11 +2,8 @@
 
 ## Overview
 
-Upload a video → Stored temporarily or uploaded directly to S3.
+Encode to HLS → Convert MP4 to .m3u8 playlist + .ts segments. → Upload to GCS 
 
-Encode to HLS → Convert MP4 to .m3u8 playlist + .ts segments.
-
-Stream content → Client (e.g. browser video player) fetches playlist and segments via /stream-segment.
 
 ## Endpoints
 ```/encode```
@@ -17,7 +14,7 @@ Stream content → Client (e.g. browser video player) fetches playlist and segme
 
 **Args:**
 
-```input_mp4_path``` – Path or URL to input MP4/MOV video.
+```url``` – Path or URL to input MP4/MOV video.
 
 ```video_id``` - ID of video in database
 
