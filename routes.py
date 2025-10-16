@@ -2,7 +2,7 @@ import os
 from fastapi import APIRouter, HTTPException, requests
 from fastapi import Query, Path
 from typing import Optional
-from encode import convert_mp4_to_hls, save_hls_s3
+from encode import convert_to_hls, save_hls_gcs
 from fastapi.responses import StreamingResponse
 import asyncio
 
@@ -12,9 +12,9 @@ router = APIRouter()
 async def encode_video(url: str):
     if not url:
         raise HTTPException(status_code=400, detail="URL is required")
-    encoded_video_local = await convert_mp4_to_hls(url)
-    encoded_video_s3 = save_hls_s3(encoded_video_local, 'your-s3-bucket', 'your-s3-prefix')
-    return {"message": f"Encoding video saved at {encoded_video_s3}"}
+    encoded_video_local = await convert_to_hls(url)
+    encoded_video_gcs = save_hls_gcs(encoded_video_local, 'your-s3-bucket', 'your-s3-prefix')
+    return {"message": f"Playlist file saved at {encoded_video_gcs}"}
     
 
 def fetch_file(url: str, chunk_size: int = 4096):

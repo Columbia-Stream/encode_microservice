@@ -54,3 +54,6 @@ Supported types:
 upload_to_s3(file_path, bucket_name, object_name)
 
 Purpose: Uploads encoded files or segments to S3 storage (AWS or compatible).
+
+
+venv: encode_service
