@@ -1,10 +1,4 @@
 import os
-import ffmpeg
-import asyncio
-from google.cloud import storage
-
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "columbia-stream-2bd40d5335f9.json"
-import os
 import tempfile
 import subprocess
 from google.cloud import storage
@@ -14,13 +8,21 @@ import functions_framework
 OUTPUT_PREFIX = "encodings"  # where to write HLS
 FFMPEG_PATH   = "ffmpeg"  # path to ffmpeg binary
 
-storage_client = storage.Client()
+
+_storage_client = None
+def storage_client():
+    global _storage_client
+    if _storage_client is None:
+        _storage_client = storage.Client()  # uses Cloud Run/Functions ADC
+    return _storage_client
+
 
 @functions_framework.cloud_event
 def encode(cloud_event):
     data = cloud_event.data
-    bucket_name = data["bucket"]
-    key = data["name"]                     # e.g., "12.mp4"
+    in_bucket_name = data["bucket"]
+    key = data["name"]   
+    out_bucket_name = "hls-encodings"         
 
     # 1) Ignore non-mp4 and outputs (avoid loops)
     if not key.lower().endswith(".mp4"):
@@ -33,10 +35,11 @@ def encode(cloud_event):
     base = os.path.splitext(os.path.basename(key))[0]          # "12"
     out_prefix = f"{OUTPUT_PREFIX}/{base}/"                    # encodings/12/
 
-    print(f"Encoding gs://{bucket_name}/{key} -> gs://{bucket_name}/{out_prefix}")
+    print(f"Encoding gs://{in_bucket_name}/{key} -> gs://{out_bucket_name}/{out_prefix}")
 
-    in_bucket = storage_client.bucket(bucket_name)
-    out_bucket = in_bucket  # same bucket
+    client = storage_client()
+    in_bucket  = client.bucket(in_bucket_name)
+    out_bucket = client.bucket(out_bucket_name)
 
     with tempfile.TemporaryDirectory() as tmp:
         # 2) Download source to /tmp
@@ -62,7 +65,7 @@ def encode(cloud_event):
         ]
         subprocess.run(cmd, check=True)
 
-        # 4) Upload playlist + segments to encodings/12/
+        # 4) Upload playlist + segments to encodings/
         # playlist
         out_blob = out_bucket.blob(out_prefix + "playlist.m3u8")
         out_blob.upload_from_filename(
@@ -76,4 +79,4 @@ def encode(cloud_event):
                     os.path.join(tmp, fname), content_type="video/mp2t"
                 )
 
-    print(f"Done: gs://{bucket_name}/{out_prefix} (playlist.m3u8 + segments)")
+    print(f"Done: gs://{out_bucket_name}/{out_prefix} (playlist.m3u8 + segments)")
