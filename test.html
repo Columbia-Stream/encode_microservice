@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  <body>
+    <video id="video" controls playsinline></video>
+
+    <!-- hls.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script>
+      (function () {
+        const video = document.getElementById('video');
+
+        const playlistUrl = 'https://storage.googleapis.com/columbiastream_video_storage/12/playlist.m3u8';
+
+        if (Hls.isSupported()) {
+          const hls = new Hls({
+            // optional: low-latency/VOD tuning
+            // maxBufferLength: 30,
+            // backBufferLength: 60,
+            xhrSetup: (xhr) => { xhr.withCredentials = false; }
+          });
+          hls.loadSource(playlistUrl);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            // video.play().catch(() => {/* autoplay might be blocked */});
+          });
+          // simple error handler
+          hls.on(Hls.Events.ERROR, (e, data) => {
+            console.error('hls.js error', data);
+          });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          // Safari / iOS have native HLS support
+          video.src = playlistUrl;
+          // video.play().catch(() => {});
+        } else {
+          console.error('HLS not supported in this browser.');
+        }
+      })();
+    </script>
+  </body>
+</html>
