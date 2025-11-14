@@ -3,11 +3,15 @@ import tempfile
 import subprocess
 from google.cloud import storage
 import functions_framework
-
+import mysql.connector
+   
 # Config via env vars
-OUTPUT_PREFIX = "encodings"  # where to write HLS
 FFMPEG_PATH   = "ffmpeg"  # path to ffmpeg binary
-
+host = '10.81.64.5'
+port = 3306
+user = 'root'
+password = "Columbiacc@123"
+db_name = "microservice-upload-db"
 
 _storage_client = None
 def storage_client():
@@ -16,7 +20,19 @@ def storage_client():
         _storage_client = storage.Client()  # uses Cloud Run/Functions ADC
     return _storage_client
 
-
+def insert_gcs_path_db(video_id: int, gcs_path: str):
+    mydb = mysql.connector.connect(
+           host=host, 
+           user=user,
+           password=password,
+           database=db_name 
+    )
+    cursor = mydb.cursor()
+    cursor.execute("UPDATE Videos SET gcs_path = %s WHERE id = %s", (gcs_path, video_id))
+    print(f"Inserted into DB: {gcs_path}")
+    cursor.close()
+    mydb.close()
+    
 @functions_framework.cloud_event
 def encode(cloud_event):
     data = cloud_event.data
@@ -28,12 +44,9 @@ def encode(cloud_event):
     if not key.lower().endswith(".mp4"):
         print(f"Skip non-mp4: {key}")
         return
-    if key.startswith(OUTPUT_PREFIX + "/"):
-        print(f"Skip outputs path: {key}")
-        return
 
     base = os.path.splitext(os.path.basename(key))[0]          # "12"
-    out_prefix = f"{OUTPUT_PREFIX}/{base}/"                    # encodings/12/
+    out_prefix = f"{base}/"                    # encodings/12/
 
     print(f"Encoding gs://{in_bucket_name}/{key} -> gs://{out_bucket_name}/{out_prefix}")
 
@@ -78,5 +91,7 @@ def encode(cloud_event):
                 seg_blob.upload_from_filename(
                     os.path.join(tmp, fname), content_type="video/mp2t"
                 )
+                
+        insert_gcs_path_db(int(base), f"gs://{out_bucket_name}/{out_prefix}playlist.m3u8")
 
     print(f"Done: gs://{out_bucket_name}/{out_prefix} (playlist.m3u8 + segments)")
