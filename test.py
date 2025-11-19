@@ -2,6 +2,8 @@ import argparse
 import mimetypes
 from pathlib import Path
 from google.cloud import storage
+import mysql.connector
+
 
 def upload(bucket_name: str, local_file: str, object_name: str | None = None) -> str:
     client = storage.Client()  # uses ADC (gcloud or GOOGLE_APPLICATION_CREDENTIALS)
@@ -21,6 +23,7 @@ def upload(bucket_name: str, local_file: str, object_name: str | None = None) ->
     print(f"✅ Uploaded {src} → gs://{bucket_name}/{object_name}")
     return f"gs://{bucket_name}/{object_name}"
 
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Upload a file to GCS to trigger the encoder.")
     p.add_argument("--bucket", required=True, help="GCS bucket name (e.g., columbia_stream_video_storage)")
@@ -29,3 +32,5 @@ if __name__ == "__main__":
     args = p.parse_args()
 
     upload(args.bucket, args.file, args.object)
+
+    

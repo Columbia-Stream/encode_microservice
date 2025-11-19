@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 import subprocess
 from google.cloud import storage
@@ -7,11 +8,12 @@ import mysql.connector
    
 # Config via env vars
 FFMPEG_PATH   = "ffmpeg"  # path to ffmpeg binary
-host = '10.81.64.5'
+host = '34.123.117.250'
 port = 3306
 user = 'root'
 password = "Columbiacc@123"
 db_name = "microservice-upload-db"
+out_bucket_name = "hls_encodings"
 
 _storage_client = None
 def storage_client():
@@ -28,7 +30,10 @@ def insert_gcs_path_db(video_id: int, gcs_path: str):
            database=db_name 
     )
     cursor = mydb.cursor()
-    cursor.execute("UPDATE Videos SET gcs_path = %s WHERE id = %s", (gcs_path, video_id))
+    cursor.execute("UPDATE Videos SET gcs_path = %s WHERE video_id = %s", (gcs_path, video_id))
+    cursor.execute("UPDATE Videos SET status = %s WHERE video_id = %s", ("Completed", video_id))
+    mydb.commit()
+    
     print(f"Inserted into DB: {gcs_path}")
     cursor.close()
     mydb.close()
@@ -37,17 +42,17 @@ def insert_gcs_path_db(video_id: int, gcs_path: str):
 def encode(cloud_event):
     data = cloud_event.data
     in_bucket_name = data["bucket"]
-    key = data["name"]   
-    out_bucket_name = "hls-encodings"         
+    key = data["name"]   # e.g., "raw/12/output_12.mp4"
 
-    # 1) Ignore non-mp4 and outputs (avoid loops)
-    if not key.lower().endswith(".mp4"):
-        print(f"Skip non-mp4: {key}")
+    # Only accept keys like raw/<ID>/output_<ID>.mp4
+    m = re.match(r'^raw/(?P<vid>[^/]+)/upload_(?P=vid)\.(?P<ext>mp4|mov)$', key, re.IGNORECASE)
+    if not m:
+        print(f"Skip (key does not match expected pattern): {key}")
         return
 
-    base = os.path.splitext(os.path.basename(key))[0]          # "12"
-    out_prefix = f"{base}/"                    # encodings/12/
-
+    video_id = m.group("vid")
+    filetype = m.group("ext").lower()
+    out_prefix = f"{video_id}/"
     print(f"Encoding gs://{in_bucket_name}/{key} -> gs://{out_bucket_name}/{out_prefix}")
 
     client = storage_client()
@@ -56,7 +61,7 @@ def encode(cloud_event):
 
     with tempfile.TemporaryDirectory() as tmp:
         # 2) Download source to /tmp
-        src_path = os.path.join(tmp, "input.mp4")
+        src_path = os.path.join(tmp, f"input.{filetype}")
         in_bucket.blob(key).download_to_filename(src_path)
 
         # 3) FFmpeg -> HLS in /tmp
@@ -92,6 +97,6 @@ def encode(cloud_event):
                     os.path.join(tmp, fname), content_type="video/mp2t"
                 )
                 
-        insert_gcs_path_db(int(base), f"gs://{out_bucket_name}/{out_prefix}playlist.m3u8")
+    insert_gcs_path_db(video_id, f"https://storage.googleapis.com/{out_bucket_name}/{out_prefix}playlist.m3u8")
 
     print(f"Done: gs://{out_bucket_name}/{out_prefix} (playlist.m3u8 + segments)")
