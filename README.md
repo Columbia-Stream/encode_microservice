@@ -5,9 +5,6 @@
 Encode to HLS → Convert MP4 to .m3u8 playlist + .ts segments. → Upload to ```hls-encodings``` GCS bucket 
 
 
-## Endpoints
-```/encode```
-
 **Purpose:** Tool to encode mp4/mov to HLS format. Executed as Cloud Run function whenever raw video is uploaded to ```columbia_stream_video_storage``` bucket. Updates Videos DB with playlist path on GCS.
 
 **Implementation:**
